@@ -31,3 +31,41 @@ appear in different region of address space.
 Addresses that are used by a process are *virtual* because they don't correspond to actual locations in physical memory.
 Instead, *memory management hardware* and *OS components* (like page tables) maintain a mapping between virtual addresses
 and physical addresses.
+
+## Process address space and memory management.
+
+Process usually doesn't use whole address space (from $V_0$ to $V_{max}$) and we may simply not 
+have enough physical memory to store all state. For ex. if virtual addresses are 32 bits, 
+virtual address space is 4GB. So, OS doesn't map all address space to physical memory and
+dynamically desides which portion of address space is mapped and where. So different parts of
+same address space that are mapped may not layout contigiously in physical memory.
+
+## PCB
+
+Process control block -- instance of specific structure and maintained by OS:
+
+* PCB created when process is created
+* Certain fields are updated when process state changes. Some fields change too frequently.
+
+It contains:
+
+* Process state (Running, Ready, Waiting)
+* Process number
+* Program counter
+* Values of registers
+* Memory limits
+* List of open files
+* Priority (for scheduling)
+* Signal mask
+* CPU scheduling info (how long process running, etc.)
+* and many more ...
+
+## Context Switch
+
+**Context switch** is mechanism that used by OS of switching execution from context of one process
+to the context of another process.
+
+It can be expansive for 2 reasons:
+
+* *Direct costs*: number of cycles for load/store context from/to PCB (load/store register values in CPU).
+* *Indirect costs*: cold cache (cache misses) because previous process polluted cache.
