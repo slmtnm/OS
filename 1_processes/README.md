@@ -69,3 +69,47 @@ It can be expansive for 2 reasons:
 
 * *Direct costs*: number of cycles for load/store context from/to PCB (load/store register values in CPU).
 * *Indirect costs*: cold cache (cache misses) because previous process polluted cache.
+
+## Process state and transitions
+
+Processes can be:
+
+* Ready -- not executing on CPU, but ready for this
+* Running -- currently executing on CPU
+* Waiting -- blocked while waiting some event, typically I/O operation
+
+Process that is 'Ready', can be transited to 'Running' state by scheduler.
+
+Process that is 'Running', can be transited to 'Ready' by scheduler, or to 'Waiting' when
+issuing I/O operation.
+
+Process that is 'Waiting', can transited to 'Ready' when completed I/O operation (for ex.
+got data from disk, or writed on console).
+
+New process is always in 'Ready' state. Process can terminate only from 'Running' state.
+
+## Process creation
+
+Processes in most operating systems represented by tree, where tree root is 'sched' process with PID 0
+(typically) that is responsible for paging. Process 'init' is special and has PID 1. All
+other processes created either by 'init' or it's descendants.
+
+For process creation there are several system calls:
+
+* *fork* -- creates new process with same PCB as it's parent (=> same program counter, stack
+pointer, execution context, etc.). But obiously new process has new address space (mappings from same virtual
+addresses to new physical addresses).
+* *exec* -- it replace's PCB of process that invoked it with completly new PCB, and
+take program name and program arguments as argument, loads program and start it.
+
+Typical combination is fork + exec.
+
+System call 'clone' similar to 'fork', but provides more precise control over
+what pieces of execution context are shared between calling process and child process.
+
+For example, with 'clone' system call, caller can control whether or not the two
+processes share the virtual address space (in this case new thread will be created, but not
+whole process), table of descriptors and table of signal handlers. 
+
+This system call also allow the new child process to be placed in separate namespace 
+(read about namespaces in linux).
