@@ -91,3 +91,5 @@ determuines action based on error code and faulting address. For example, it may
 because of page frame not in memory and it is just needed to be brought from disk to memory,
 or it may be protection error (OS will generate signal SIGSEGV to process, that tries access that memory). Error code is generated from page table entry flags, and faulting address is stored in CR2 
 register.
+
+## Hierarchical page tables
