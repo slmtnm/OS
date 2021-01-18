@@ -25,7 +25,7 @@ Example of this interconnect is PCI bus (peripheral component interconnect), SCS
 Controllers that are part of the device's HW determine what type of interconnect can a device directly
 attach to. But there are bridging controllerse that can handle differences in different type interconnects.
 
-![image](system.png)
+![alt text](system.png)
 
 ## Device drivers
 
@@ -146,7 +146,7 @@ interfaces -- how these fs interact with underlying storage devices.
 OS introduce **generic block layer** that standardized block interface, that FS
 is interacting to. That generic block layer is implemented by particular driver.
 
-![image](block.png)
+![alt text](block.png)
 
 Summarizing: FS finds out *what* block is accessed (in terms of generic block layer),
 and then performs block operation (read/write) by interacting to driver of block device.
@@ -164,6 +164,77 @@ some interface interface for user application (it is same type of API that is fo
 usual FS, for ex. POSIX). Underlying VFS there may be multiple VFS, that corresponds to 
 different disks or even network.
 
-![image](vfs.png)
+![alt text](vfs.png)
 
 ## Virtual filesystem abstractions
+
+VFS supports several key abstractions:
+
+* **file** -- elements on which the VFS operates
+* **file descriptor** -- OS representation of a file, first created when file first opened, per process.
+  * Operations that require file descriptor: open, read, write, sendfile, lock, close, ...
+* For each file VFS maintains a persistent data structure called **inode**
+  * list of all data blocks, that corresponds to this file
+  * device on which file lays, permissions, size, ...
+
+inode is needed because file does not necesserily lay on contigious block on disk.
+
+Directory is just a file, except it's contents include info aboud files and their inodes (contents is mapping between filenames and inodes). VFS will
+interpret the contents of the directory a little bit different.
+
+**dentry** -- directory entry, corresponds to single path component. For ex. when accessing
+directory /home/user, VFS will create a dentry elements for /, /home, /home/user.
+
+Benefit of dentries is when we need to access a file stored in /home/user/, we don't have to
+through entire path and try to reread files that corresponds to all of these directories (/, /home, /home/user)
+to get our file. Filesystem will maintain **dentry cache** for all files we accessed.
+
+**superblock** -- filesystem-specific info about FS layout.
+
+## VFS on disk
+
+VFS data structures are created and maintained by OS's fs component. But, opposite to dentries that stored in RAM, inodes
+are persists on disk with the files they related to.
+![alt text](vfs-on-disk.png)
+
+On pic. we have 2 files (green and blue), and their inodes (red).
+
+## inodes
+
+inodes plays key role in keeping track how file is organized on disk. All file's contents completely 
+determined by file's inode. inode itself are uniquely numbered, so by number of inode we can get all
+file's content. inode contain list of all file blocks + other metadata (if file access is legal, status of the file, is file locked, etc.)
+So, filename is mapped to inode (number). 
+![alt text](inode-on-disk.png)
+
+* (+) easy to perform sequential or random access
+* (-) limit of file size: e.g. 128 byte inode, 4 byte block ptr => 32 addressible blocks => 32 * 1kB block = 32 kB file size
+
+Modification to increase file size limit: indirect pointers. With indirect pointers mechanism, inode contains:
+
+* metadata
+* pointers to blocks
+* pointers to list of blocks (single indirect)
+* pointer to list of pointers to list of blocks (double indirect)
+* triple indirect
+
+![alt text](indirect.png)
+
+* (+) small inode => large file size
+* (-) file access slowdown (more disk accesses to finally reach block: in single indirect - 2 accesses instead of 1, in double - 3, etc..)
+
+## Disk access optimizations
+
+* caching/buffering file contents => reduce disk accesses
+  * read/write from cache
+  * periodically slush to disk -- fsync()
+* IO scheduling => minimize disk head movement
+  * maximize sequential vs random access
+  * for ex: write block 25, write block 17 => write 17, then write 25
+* prefetching => increase cache hits
+  * leverages locality
+  * for ex: read block 17 => read also 18, 19 in cache
+* journaling/logging => reduce random access
+  * "describe" write in log: block, offset, value; but not do actual write on disk
+  * periodically apply updates to proper disk locations in proper order
+  * used in ext3, ext4
