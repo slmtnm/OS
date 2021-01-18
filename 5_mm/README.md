@@ -92,4 +92,61 @@ because of page frame not in memory and it is just needed to be brought from dis
 or it may be protection error (OS will generate signal SIGSEGV to process, that tries access that memory). Error code is generated from page table entry flags, and faulting address is stored in CR2 
 register.
 
+## Page table size
+
+Let's calculate page table size. We have a number of page table entries equal to number of virtual pages.
+Assume that
+
+* 32 bit arch
+* page table entry size = 4 bytes, including PFN + flags
+* page size = 4kB
+
+2^32 / 4kB(=2^12) = 2 ^ 20 virtual page numbers.
+2 ^ 20 * 4B = 4Mb -- page table size. And it is *per process*.
+
+Same page table on 64 bit arch will be 32 petabytes (10^15 bytes).
+
+To reduce this, we want to
+
+1. do not have mapping entry for unused virtual pages
+2. even do not have mapping for those parts of used virtual pages, that are not used
+
+To accomplish 2-nd, we introduce hierarchical page tables (to accomplish 1-st we just should not add entries for unused pages).
+
 ## Hierarchical page tables
+Instead of flat page tables, we consider multi level page tables. 
+![alt text](hier.png)
+
+Outer page table elements not pointers to actual frame pages, but to internal page tables.
+Outer page table called **page table directory**. Internal page table -- only for valid virtual memory regions.
+
+Now, virtual address has 3 parts: p1, p2 and d: p1 -- number of page table in page table directory, p2 -- number of 
+page table entry in internal page table, and d -- offset in page frame. 
+
+There may be even 3 and 4 levels.
+
+* (+) smaller internal page tables/directories => reduces page table size
+* (-) more memory accesses required for translation
+
+## Translate Lookaside Buffer (TLB)
+
+TLB -- MMU-level address translation cache. On TLB miss -- page table access from memory. TLB will also contain
+all of the necessary protection and validity bits to verify if access is correct or, if necessery, generate a fault.
+
+TLB is NOT CPU cache (TLB contains translations VA to PA, CPU cache contains values)
+
+## Inverted Page Tables
+
+Inverted page tables -- completely different way to oragnize translation process. Logical address consists is 
+[pid | p | d]. We have one page table with entries (pid, p). To perform translation, we do linear search
+through table to found pair (pid, p). When found, index of this entry is a page frame number. Then 
+add offset d.
+
+* (-) linear search (TLB resques)
+
+# Hashing page tables
+Logical address is [p | d]. We have hash function that applies to p and returns index in page table.
+Page table entry is a linked list of possible translations, [q | s]. Then we do linear search to find q == p in that list,
+and take s as page frame number.
+
+## Segmentation
