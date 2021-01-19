@@ -190,3 +190,27 @@ MLFQ is not equvivalent of queue ordered by priorities:
 
 * Different treatment of threads (policies) at each level
 * Feedback mechanism (dynamically adjust timeslice for task)
+
+## Scheduling on Multi-CPU systems
+
+If thread is scheduled on one CPU and then on another, cache will be COLD.
+
+We want try to schedule back on same CPU where it is executed befor (cache-affinity)
+
+To achieve:
+
+* keep tasks on the same CPU as much as possible
+* hierarchical scheduler architecture
+  * at a top level -- load balancing component that divides tasks among CPU's,
+  and a per-CPU scheduler (with per-CPU runqueue) repeadedly schedules tasks
+  on given CPU as much as possible.
+
+Load balancers balances:
+
+* based on queue length
+* or when CPU is idle
+
+Memory nodes can have fast interconnect with some subset of CPUs and
+those CPUs access memory faster (Non-Uniform Memory Access platforms). So
+when scheduling, try to schedule tasks on those CPUs, that are close to same
+memory node as previous
