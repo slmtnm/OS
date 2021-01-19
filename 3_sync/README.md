@@ -184,3 +184,46 @@ that are declared to be synchronized are entry points into this monitor.
 When compiled, resulting code will include all of the appropriate locking, checking on
 entry to that method, and unlocking, on exit. The only thing is that *notify* has to be
 done explicitly.
+
+## Atomic instructions
+
+Each type of hardware architecture supports number of atomic instructions.
+
+Hardware-specific:
+
+* test_and_set -- pretty common
+* read_and_increment
+* compare_and_swap
+
+They perform multistep (multi CPU cycle) instructions, but hardware makes
+guaranties that steps will happen atomicaly, not halfway (entire operation or non
+of them).
+
+Guaranties:
+
+* atomicity
+* mutual exclusion -- one instruction at a time allowed to perform operation
+* queue all concurrent instructions but one -- remaining ones have to wait
+
+So, **atomic instraction** -- critical section with HW supported sync.
+
+Spinlock with atomic:
+
+```c
+spinlock_lock(lock) {
+    while(test_and_set(lock) == busy)
+}
+```
+
+test_and_set:
+
+* atomically returns original value and sets new value = 1
+* first thread: test_and_set(lock) == 0: free
+* next thread: test_and_set(lock) == 1: busy
+  * reset lock to 1 (busy) but that's ok
+
+## Shared Memory Multiprocesses (SMP)
+Multiprocessor system consists of more than one CPU and memory, that is accessible
+to all of these CPUs.
+
+![alt text](smp.txt)
