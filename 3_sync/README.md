@@ -139,4 +139,48 @@ a single process, or among multiple processes.
 
 ## Reader/Writer locks
 
+We distinguish different type of accesses:
 
+* read (never modify)
+  * resource can be shared concurrently
+* write (always modify)
+  * resource should be accessed exclusivly
+
+*RWLock* are used to achieve this sync method. It's like mutex, but on access
+you must specify the type of access and then lock behaves accordingly.
+
+## Monitors
+
+One of the problems with previous constructs is that they require developers to 
+pay attention to the use of the peer-wise operations (lock/unlock, wait/signal) and
+it is common cause of errors.
+
+Monitors -- higher level sync abstracts that helps with this.
+
+Monitors specify:
+
+* shared resource that's being protected by the synchronization construct
+* all the possible entry procedures to that resource (like, if we have to differentiate readers and
+writers?)
+* any possible condition variables that could potentially be to wake up
+different types of waiting threads
+
+When performing certain type of access, *on entry*:
+
+* necessery locking, checking will take place
+
+On exit:
+
+* unlock, check, signal, ...
+
+Monitors also reffered as programming style, that uses mutexes and cond. vars. to
+describe entry and exit codes from the critical section.
+
+# Java Monitors
+
+Every single object in Java has an internal lock, and methods
+that are declared to be synchronized are entry points into this monitor.
+
+When compiled, resulting code will include all of the appropriate locking, checking on
+entry to that method, and unlocking, on exit. The only thing is that *notify* has to be
+done explicitly.
