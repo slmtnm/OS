@@ -24,7 +24,7 @@ accessing data that is shared among threads.
 * On **lock** (aquire) mutex, thread has exclusive access to resource
 * Other threads that locks same mutex, will be blocked on this lock operation until mutex owner releases it
 
-Mutex is a data structure that has 
+Mutex is a data structure that has
 
 * locked flag
 * owner
@@ -34,7 +34,7 @@ Mutex is a data structure that has
 
 ## Producer/Consumer problem
 
-What if processing you wish to perform with mutual exclusion needs to occur only under 
+What if processing you wish to perform with mutual exclusion needs to occur only under
 certain conditions?
 
 For ex., there are some **producer** threads that insert in linked list, and one **consumer** thread,
@@ -50,10 +50,10 @@ But this approach is wasteful, and better to tell consumer where the list is act
 **Condition variable** -- used in conjunction with mutexes to control behaviour of concurrent threads.
 With cond. var., consumer will **wait** until list is full. Producer, after insertion will check if list is full, and if it is,
 send **signal** to consumer.
-  
+
 Both wait and signal operations used with special condition variable as argument, and both of them
 are used **inside** critical section (with aquired mutex). On wait operation, consumer must also release
-captured mutex, and capture it back once signal is received. 
+captured mutex, and capture it back once signal is received.
 
 Summarizing, cond. var. must support following API:
 
@@ -63,18 +63,18 @@ Summarizing, cond. var. must support following API:
 
 ## Reader/Writer problem
 
-We threads of 2 kind: 
- 
+We threads of 2 kind:
+
 * that are only read shared state
 * that are modifying shared state
 
-Problem: we should have 0 or more readers at a time, but only 0 or 1 writer at a time AND if there are readers that accessing shared state, 
+Problem: we should have 0 or more readers at a time, but only 0 or 1 writer at a time AND if there are readers that accessing shared state,
 then no writers should be that modify it (see def. of *data race*).
 
 Problem cannot be solved just with mutex, because it is not allowed multiple readers to access shared state, but only one (too restrictive).
 
 We can solve it by introducing integer counter, that is equal -1 if there are 1 writer, equal 0 if shared state is free, or N > 0 where N is number of readers.
-currently accessing shared state. 
+currently accessing shared state.
 
 We will control this counter with mutex, and additionaly have 2 cond. var.: *read phase* and *write phase*.
 
@@ -89,7 +89,7 @@ however none of them do, because each waits on the other one.
 
 Deadlock appears when two threads locks two different mutexes in different order.
 
-**Wait graph** - oriented graph, where 
+**Wait graph** - oriented graph, where
 
 * verticies -- threads
 * edge from t1 to t2 if t1 waiting on a resource that t2 has
@@ -106,20 +106,20 @@ How to avoid:
 ## Spinlocks
 
 Spinlocks are one of the most basic sync. construct. Spinlocks are like mutex, has
-lock() and unlock(). But when performing lock operation, if lock is busy, 
-thread isn't blocked (like when using mutex), but instead **spinning**: 
-running on CPU and repeatedly check if lock is free (burning CPU cycle). Thread 
+lock() and unlock(). But when performing lock operation, if lock is busy,
+thread isn't blocked (like when using mutex), but instead **spinning**:
+running on CPU and repeatedly check if lock is free (burning CPU cycle). Thread
 is suspended from CPU only if it preempted (for ex. if timeslice expired).
 
 ## Semaphores
 
 Semaphores are common sync construct in OS kernels. It's like traffic light: STOP or GO. Similar
-to a mutex, but more general. 
+to a mutex, but more general.
 
 Semaphore represented by integer value. On init, it is assigned a max value (positive int).
 
 On try (wait, P, proberen), if semaphore value is non-zero => decrement and proceed. Otherwise thread
-will blocked. 
+will blocked.
 
 If semaphore initialized with 1, it is binary semaphore (mutex).
 
@@ -134,7 +134,7 @@ sem_wait(sem_t *sem);
 sem_post(sem_t *sem);
 ```
 
-*pshared* is flag that determines if semaphore is shared across threads within 
+*pshared* is flag that determines if semaphore is shared across threads within
 a single process, or among multiple processes.
 
 ## Reader/Writer locks
@@ -151,7 +151,7 @@ you must specify the type of access and then lock behaves accordingly.
 
 ## Monitors
 
-One of the problems with previous constructs is that they require developers to 
+One of the problems with previous constructs is that they require developers to
 pay attention to the use of the peer-wise operations (lock/unlock, wait/signal) and
 it is common cause of errors.
 
@@ -226,4 +226,58 @@ test_and_set:
 Multiprocessor system consists of more than one CPU and memory, that is accessible
 to all of these CPUs.
 
-![alt text](smp.txt)
+![alt text](smp.png)
+
+Shared memory may be a single memory component that equidistant from all of the CPUs,
+or multiple memory components.
+
+![alt text](smp1.png)
+
+Regardless of number of memory components they are somehow interconnected to CPUs.
+
+There are two types of connection CPU to memory components:
+
+* bus-based (first pic, only one address at a time may be addressed from CPU's to memory components)
+* interconnect based (multiple addresses at a time may be addressed from CPU's to memory components)
+
+In addition, each CPU can have *cache*, that hides memory latency.
+
+Memory latency is more often issue with shared memory systems (multiple CPUs), because
+there is *contention* on a memory module interconnect, and address reference may be delayed.
+
+When CPU perform a write to memory, several things can happen:
+
+* we may not even allow to write to cache, and only directly to memory
+* CPU write may be applied both to cache and directly in memory (write-through)
+* CPU write may be applied only to cache, but actual update in memory may be done later (write-back)
+
+## Cache coherence
+
+What happens when multiple CPUs reference same data *x*? *x* could appear multiple caches.
+On some arch's that is problem that is done purely by software. Otherwise caches not coherent.
+
+![alt text](coh.png)
+
+For ex., if CPU1 update value *x* to be 3, CPU2 doesn't know fact that x changed in memory and will have
+wrong value of *x* in its cache. This is called *non-cache-coherent* platforms.
+
+On other archs, HW will perform all steps to make sure that caches are coherent. This is called *cache-coherent*
+platforms.
+
+Cache-coherence methods:
+
+* write-invalidate: if one CPU changes value *x*, hardware will invalidate cache of all other CPUs
+  * (+) lower bandwidth requirements & amortize cost (because we dont send value of *x* to other caches, just it's reference to invalidate it & CPU1 can change *x* multiple times before other CPUs will access *x*, but their cache
+  invalidating will be done only once)
+* write-update: if one CPU changes value *x*, hardware will update all others CPU caches
+  * (+) update available immediately
+
+As a programmer you can not choice write-invalidate or write-update, it is determined by HW.
+
+## Cache Coherence and Atomics
+
+Atomics always bypassing caches adn accessing memory directly.
+
+(+) can be ordered & synchronized
+(-) take much longer than other types of instructions
+(-) generates coherence traffic regardless of changed or not
